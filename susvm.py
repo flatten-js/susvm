@@ -33,8 +33,9 @@ TYPE_INIT = 'init'
 TYPE_BUILD = 'build'
 TYPE_INSTALL = 'install'
 TYPE_VERSIONS = 'versions'
+TYPE_SYNC = 'sync'
 TYPE_START = 'start'
-TYPES = [TYPE_INIT, TYPE_BUILD, TYPE_INSTALL, TYPE_VERSIONS, TYPE_START]
+TYPES = [TYPE_INIT, TYPE_BUILD, TYPE_INSTALL, TYPE_VERSIONS, TYPE_SYNC, TYPE_START]
 
 LOOP_LIMIT = 10
 
@@ -226,6 +227,21 @@ def _versions():
 def versions():
     for ver in _versions(): print(ver)
 
+def sync():
+    vers = glob.glob(rf'{APP_VERSIONS_PATH}\ver.*')
+
+    for ver in vers:
+        for file in os.listdir(APP_MASTER_PATH):
+            target_path = f'{ver}\\{file}'
+
+            if os.path.islink(target_path): os.unlink(target_path)
+            elif os.path.isdir(target_path): shutil.rmtree(target_path)
+            elif os.path.isfile(target_path): os.remove(target_path)
+
+            os.symlink(f'{APP_MASTER_PATH}\\{file}', target_path)
+
+    print('Synchronization has been completed successfully.')
+
 def _start_app_shortcat():
     TARGET_KEYS = ['I', 'K']
 
@@ -298,4 +314,5 @@ if args.type == TYPE_INIT: init()
 elif args.type == TYPE_BUILD: build()
 elif args.type == TYPE_INSTALL: install(args.list, args.ver, args.pwd)
 elif args.type == TYPE_VERSIONS: versions()
+elif args.type == TYPE_SYNC: sync()
 elif args.type == TYPE_START: start(args.ver)
