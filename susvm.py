@@ -22,7 +22,7 @@ PROJECT_NAME = 'susvm.py'
 PROJECT_PATH = r'C:\Users\Flat\Desktop\susvm'
 
 APP_NAME = 'SUSPlayer.exe'
-APP_PATH = r'C:\Users\Flat\Desktop\SUSPlayer2'
+APP_PATH = r'C:\Users\Flat\Desktop\SUSPlayer'
 APP_MASTER_PATH = rf'{APP_PATH}\master'
 APP_VERSIONS_PATH = rf'{APP_PATH}\versions'
 _APP_TMP_PATH = rf'{APP_PATH}\tmp'
