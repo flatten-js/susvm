@@ -1,5 +1,6 @@
 import os
 import re
+import sys
 import time
 import glob
 import shutil
@@ -13,7 +14,6 @@ from pyhooked import Hook, KeyboardEvent
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import NoSuchElementException
-import chromedriver_binary
 
 
 
@@ -28,6 +28,8 @@ APP_VERSIONS_PATH = rf'{APP_PATH}\versions'
 _APP_TMP_PATH = rf'{APP_PATH}\tmp'
 
 HELPER_APP_PATH = r'C:\Program Files (x86)\Steam\steamapps\common\Borderless Gaming\BorderlessGaming.exe'
+
+CHROME_DRIVER = r'driver\chromedriver.exe'
 
 TYPE_INIT = 'init'
 TYPE_BUILD = 'build'
@@ -57,13 +59,21 @@ args = parser.parse_args()
 def version(str, depth = 0):
     return re.search(r'ver\.(\d+\.\d+)*', str).group(depth)
 
+def resource_path(path):
+    try:
+        dir_path = sys._MEIPASS
+    except:
+        dir_path = os.path.dirname(__file__)
+
+    return f'{dir_path}\\{path}'
+
 def chrome_driver():
     options = Options()
     options.add_argument('--headless')
     options.add_argument('--blink-settings=imagesEnabled=false')
     options.add_experimental_option('excludeSwitches', ['enable-logging'])
 
-    driver = webdriver.Chrome(options=options)
+    driver = webdriver.Chrome(resource_path(CHROME_DRIVER), options=options)
 
     driver.command_executor._commands['send_command'] = ('POST', '/session/$sessionId/chromium/send_command')
     driver.execute('send_command', params = {
@@ -126,7 +136,8 @@ def init():
         os.mkdir(APP_VERSIONS_PATH)
 
 def build():
-    subprocess.call(f'pyinstaller {PROJECT_PATH}\\{PROJECT_NAME} --onefile')
+    cmd = f'pyinstaller {PROJECT_PATH}\\{PROJECT_NAME} --onefile --add-binary {PROJECT_PATH}\\{CHROME_DRIVER};./driver'
+    subprocess.call(cmd)
 
 def _install_list(driver):
     vers = []
