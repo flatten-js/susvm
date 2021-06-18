@@ -1,0 +1,5 @@
+__pycache__/
+
+susvm.spec
+build/
+dist/
