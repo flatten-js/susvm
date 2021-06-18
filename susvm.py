@@ -155,6 +155,8 @@ def _install_try(driver, pwd):
     return False
 
 def install(is_list, ver, pwd):
+    if ver in _versions(): return print(f'Version {ver} is already installed.')
+
     driver = chrome_driver()
     driver.get('https://ux.getuploader.com/kousi_taiko/search?q=SUSPlayer')
 
@@ -194,9 +196,12 @@ def install(is_list, ver, pwd):
 
     print('Installation has been completed successfully.')
 
-def versions():
+def _versions():
     vers = glob.glob(rf'{APP_VERSIONS_PATH}\ver.*')
-    for ver in sorted(vers): print(version(ver, 1))
+    return [version(ver, 1) for ver in sorted(vers)]
+
+def versions():
+    for ver in _versions(): print(ver)
 
 
 
