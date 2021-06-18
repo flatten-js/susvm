@@ -1,6 +1,7 @@
 import os
 import re
 import time
+import glob
 import shutil
 import zipfile
 import argparse
@@ -25,7 +26,8 @@ _APP_TMP_PATH = rf'{APP_PATH}\tmp'
 TYPE_INIT = 'init'
 TYPE_BUILD = 'build'
 TYPE_INSTALL = 'install'
-TYPES = [TYPE_INIT, TYPE_BUILD, TYPE_INSTALL]
+TYPE_VERSIONS = 'versions'
+TYPES = [TYPE_INIT, TYPE_BUILD, TYPE_INSTALL, TYPE_VERSIONS]
 
 LOOP_LIMIT = 10
 
@@ -45,7 +47,7 @@ args = parser.parse_args()
 
 # Methods
 def version(str, depth = 0):
-    return re.search(r'ver.(\d+\.\d+)*', str).group(depth)
+    return re.search(r'ver\.(\d+\.\d+)*', str).group(depth)
 
 def chrome_driver():
     options = Options()
@@ -192,9 +194,14 @@ def install(is_list, ver, pwd):
 
     print('Installation has been completed successfully.')
 
+def versions():
+    vers = glob.glob(rf'{APP_VERSIONS_PATH}\ver.*')
+    for ver in sorted(vers): print(version(ver, 1))
+
 
 
 # Types
 if args.type == TYPE_INIT: init()
 elif args.type == TYPE_BUILD: build()
 elif args.type == TYPE_INSTALL: install(args.list, args.ver, args.pwd)
+elif args.type == TYPE_VERSIONS: versions()
