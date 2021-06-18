@@ -5,7 +5,10 @@ import glob
 import shutil
 import zipfile
 import argparse
+import threading
 import subprocess
+import pyautogui as gui
+from pyhooked import Hook, KeyboardEvent
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -18,16 +21,20 @@ import chromedriver_binary
 PROJECT_NAME = 'susvm.py'
 PROJECT_PATH = r'C:\Users\Flat\Desktop\susvm'
 
+APP_NAME = 'SUSPlayer.exe'
 APP_PATH = r'C:\Users\Flat\Desktop\SUSPlayer2'
 APP_MASTER_PATH = rf'{APP_PATH}\master'
 APP_VERSIONS_PATH = rf'{APP_PATH}\versions'
 _APP_TMP_PATH = rf'{APP_PATH}\tmp'
 
+HELPER_APP_PATH = r'C:\Program Files (x86)\Steam\steamapps\common\Borderless Gaming\BorderlessGaming.exe'
+
 TYPE_INIT = 'init'
 TYPE_BUILD = 'build'
 TYPE_INSTALL = 'install'
 TYPE_VERSIONS = 'versions'
-TYPES = [TYPE_INIT, TYPE_BUILD, TYPE_INSTALL, TYPE_VERSIONS]
+TYPE_START = 'start'
+TYPES = [TYPE_INIT, TYPE_BUILD, TYPE_INSTALL, TYPE_VERSIONS, TYPE_START]
 
 LOOP_LIMIT = 10
 
@@ -87,6 +94,22 @@ def unzip(from_, to, mkdir = False):
     with zipfile.ZipFile(from_) as zf:
         if mkdir: os.mkdir(to)
         zf.extractall(to)
+
+def kill(pid):
+    subprocess.call(['taskkill', '/F', '/T', '/PID', str(pid)], stdout = subprocess.DEVNULL)
+
+def unstable_app_open(path = None, cmd = None, cwd = None, wait = 0):
+    kwargs = { 'cwd': cwd, 'shell': cmd }
+    process = subprocess.Popen(cmd or path, **kwargs)
+    if cmd: process._kill = lambda: kill(process.pid)
+
+    time.sleep(wait)
+    return process
+
+def type_keys(keys):
+    keys = keys.split('+')
+    for key in keys: gui.keyDown(key)
+    for key in keys: gui.keyUp(key)
 
 
 
@@ -203,6 +226,71 @@ def _versions():
 def versions():
     for ver in _versions(): print(ver)
 
+def _start_app_shortcat():
+    TARGET_KEYS = ['I', 'K']
+
+    pressing = []
+    lock = False
+    start = 0
+
+    def handle_events(args):
+        global lock, start
+        key = args.current_key
+
+        if not isinstance(args, KeyboardEvent): return
+
+        if args.event_type == 'key down':
+            if not key in pressing: pressing.append(key)
+        elif args.event_type == 'key up':
+            pressing.remove(key)
+
+        if set(TARGET_KEYS) == set(pressing):
+            if not start: start = time.time()
+            diff = time.time() - start
+
+            if not lock and 2 <= diff:
+                lock = True
+                type_keys('esc')
+        else:
+            lock = False
+            start = 0
+
+    hk = Hook()
+    hk.handler = handle_events
+    hk.hook()
+
+def _start_app_intercept(app):
+    sub = threading.Thread(target = _start_app_shortcat)
+    sub.setDaemon(True)
+    sub.start()
+
+    while True:
+        time.sleep(0.01)
+        if app.poll() == 0: break
+
+def start(ver):
+    ver = ver or '*'
+    vers = glob.glob(rf'{APP_VERSIONS_PATH}\ver.{ver}')
+
+    if not vers:
+        print('The specified version was not found.')
+        print('See all available versions with `susvm versions`.')
+        return
+
+    # ToDo: Perform exact version comparison
+    ver = max(vers)
+
+    app = unstable_app_open(cmd = APP_NAME, cwd = ver, wait = 2)
+    type_keys('win+shift+right')
+
+    helper_app = unstable_app_open(HELPER_APP_PATH, wait = 2)
+    helper_app.kill()
+
+    try:
+        _start_app_intercept(app)
+    except KeyboardInterrupt:
+        app._kill()
+
 
 
 # Types
@@ -210,3 +298,4 @@ if args.type == TYPE_INIT: init()
 elif args.type == TYPE_BUILD: build()
 elif args.type == TYPE_INSTALL: install(args.list, args.ver, args.pwd)
 elif args.type == TYPE_VERSIONS: versions()
+elif args.type == TYPE_START: start(args.ver)
