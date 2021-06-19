@@ -240,10 +240,11 @@ def _start_app_shortcat():
     start = 0
 
     def handle_events(args):
-        global lock, start
+        nonlocal lock, start
         key = args.current_key
 
         if not isinstance(args, KeyboardEvent): return
+        if lock and key == 'Escape': return
 
         if args.event_type == 'key down':
             if not key in pressing: pressing.append(key)
