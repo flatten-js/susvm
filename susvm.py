@@ -195,7 +195,8 @@ def install(args):
 
     if is_list:
         vers = _install_list(driver)
-        for ver in sorted(vers): print(ver)
+        print('Available versions')
+        for ver in sorted(vers): print(f'  {ver}')
         return driver.quit()
 
     link = _install_link(driver, ver)
@@ -238,7 +239,7 @@ def versions(args):
     if use_ver: use_ver = version(use_ver[0], 1)
 
     for ver in _versions():
-        if use_ver == ver: print(f'* {ver}')
+        if use_ver == ver: print(f'* {ver} (Currently using executable)')
         else: print(f'  {ver}')
 
 def use_sync(ver):
@@ -264,10 +265,13 @@ def use(args):
     if use_ver: shutil.rmtree(use_ver[0])
 
     ver = vers[0]
-    use_ver = f'{APP_VERSION_PATH}\{version(ver)}'
-    shutil.copytree(ver, use_ver)
+    use_ver = version(ver)
+    use_ver_path = f'{APP_VERSION_PATH}\{use_ver}'
+    shutil.copytree(ver, use_ver_path)
 
-    use_sync(use_ver)
+    use_sync(use_ver_path)
+
+    print(f'Now using SUSPlayer {use_ver}')
 
 def _start_app_shortcat():
     TARGET_KEYS = ['I', 'K']
@@ -292,7 +296,7 @@ def _start_app_shortcat():
             if not start: start = time.time()
             diff = time.time() - start
 
-            if not lock and 2 <= diff:
+            if not lock and 1.5 <= diff:
                 lock = True
                 type_keys('esc')
         else:
@@ -327,6 +331,8 @@ def start(args):
     helper_app = unstable_app_open(HELPER_APP_PATH, wait = 2)
     helper_app.kill()
 
+    print(f'{version(ver)} is running now')
+
     try:
         _start_app_intercept(app)
     except KeyboardInterrupt:
@@ -347,7 +353,7 @@ parser_init.set_defaults(handler=init)
 parser_install = subparsers.add_parser(TYPE_INSTALL, help='Install the app by specifying the version')
 parser_install.add_argument('-l', '--list', action='store_true', help='List the installable versions')
 parser_install.add_argument('-v', '--ver', help='Specify the version to install')
-parser_install.add_argument('-p', '--pass', help='Specify the password for installation')
+parser_install.add_argument('-p', '--pass', default='', help='Specify the password for installation')
 parser_install.set_defaults(handler=install)
 
 parser_versions = subparsers.add_parser(TYPE_VERSIONS, help='List the installed versions')
