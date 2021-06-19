@@ -9,6 +9,7 @@ import argparse
 import threading
 import subprocess
 import pyautogui as gui
+from operator import itemgetter
 from pyhooked import Hook, KeyboardEvent
 
 from selenium import webdriver
@@ -28,30 +29,16 @@ APP_VERSIONS_PATH = rf'{APP_PATH}\versions'
 _APP_TMP_PATH = rf'{APP_PATH}\tmp'
 
 HELPER_APP_PATH = r'C:\Program Files (x86)\Steam\steamapps\common\Borderless Gaming\BorderlessGaming.exe'
-
 CHROME_DRIVER = r'driver\chromedriver.exe'
 
-TYPE_INIT = 'init'
 TYPE_BUILD = 'build'
+TYPE_INIT = 'init'
 TYPE_INSTALL = 'install'
 TYPE_VERSIONS = 'versions'
-TYPE_SYNC = 'sync'
 TYPE_START = 'start'
-TYPES = [TYPE_INIT, TYPE_BUILD, TYPE_INSTALL, TYPE_VERSIONS, TYPE_SYNC, TYPE_START]
+TYPE_SYNC = 'sync'
 
 LOOP_LIMIT = 10
-
-
-
-# Arguments
-parser = argparse.ArgumentParser()
-
-parser.add_argument('type', choices = TYPES)
-parser.add_argument('-l', '--list', action = 'store_true', help='Display the list')
-parser.add_argument('-v', '--ver', help='Specify the version')
-parser.add_argument('-p', '--pwd', default='', help='Specify the password')
-
-args = parser.parse_args()
 
 
 
@@ -122,10 +109,19 @@ def type_keys(keys):
     for key in keys: gui.keyDown(key)
     for key in keys: gui.keyUp(key)
 
+def args_parse(args):
+    args = vars(args)
+    del args['handler']
+    return itemgetter(*args.keys())(args)
+
 
 
 # Core
-def init():
+def build(args):
+    cmd = f'pyinstaller {PROJECT_PATH}\\{PROJECT_NAME} --onefile --add-binary {PROJECT_PATH}\\{CHROME_DRIVER};./driver'
+    subprocess.call(cmd)
+
+def init(args):
     if not os.path.exists(APP_PATH):
         os.mkdir(APP_PATH)
 
@@ -134,10 +130,6 @@ def init():
 
     if not os.path.exists(APP_VERSIONS_PATH):
         os.mkdir(APP_VERSIONS_PATH)
-
-def build():
-    cmd = f'pyinstaller {PROJECT_PATH}\\{PROJECT_NAME} --onefile --add-binary {PROJECT_PATH}\\{CHROME_DRIVER};./driver'
-    subprocess.call(cmd)
 
 def _install_list(driver):
     vers = []
@@ -189,7 +181,9 @@ def _install_try(driver, pwd):
 
     return False
 
-def install(is_list, ver, pwd):
+def install(args):
+    is_list, ver, pwd = args_parse(args)
+
     if ver in _versions(): return print(f'Version {ver} is already installed.')
 
     driver = chrome_driver()
@@ -235,23 +229,8 @@ def _versions():
     vers = glob.glob(rf'{APP_VERSIONS_PATH}\ver.*')
     return [version(ver, 1) for ver in sorted(vers)]
 
-def versions():
+def versions(args):
     for ver in _versions(): print(ver)
-
-def sync():
-    vers = glob.glob(rf'{APP_VERSIONS_PATH}\ver.*')
-
-    for ver in vers:
-        for file in os.listdir(APP_MASTER_PATH):
-            target_path = f'{ver}\\{file}'
-
-            if os.path.islink(target_path): os.unlink(target_path)
-            elif os.path.isdir(target_path): shutil.rmtree(target_path)
-            elif os.path.isfile(target_path): os.remove(target_path)
-
-            os.symlink(f'{APP_MASTER_PATH}\\{file}', target_path)
-
-    print('Synchronization has been completed successfully.')
 
 def _start_app_shortcat():
     TARGET_KEYS = ['I', 'K']
@@ -295,7 +274,9 @@ def _start_app_intercept(app):
         time.sleep(0.01)
         if app.poll() == 0: break
 
-def start(ver):
+def start(args):
+    ver = args_parse(args)
+
     ver = ver or '*'
     vers = glob.glob(rf'{APP_VERSIONS_PATH}\ver.{ver}')
 
@@ -318,12 +299,50 @@ def start(ver):
     except KeyboardInterrupt:
         app._kill()
 
+def sync(args):
+    vers = glob.glob(rf'{APP_VERSIONS_PATH}\ver.*')
+
+    for ver in vers:
+        for file in os.listdir(APP_MASTER_PATH):
+            target_path = f'{ver}\\{file}'
+
+            if os.path.islink(target_path): os.unlink(target_path)
+            elif os.path.isdir(target_path): shutil.rmtree(target_path)
+            elif os.path.isfile(target_path): os.remove(target_path)
+
+            os.symlink(f'{APP_MASTER_PATH}\\{file}', target_path)
+
+    print('Synchronization has been completed successfully.')
 
 
-# Types
-if args.type == TYPE_INIT: init()
-elif args.type == TYPE_BUILD: build()
-elif args.type == TYPE_INSTALL: install(args.list, args.ver, args.pwd)
-elif args.type == TYPE_VERSIONS: versions()
-elif args.type == TYPE_SYNC: sync()
-elif args.type == TYPE_START: start(args.ver)
+
+# Arguments
+parser = argparse.ArgumentParser()
+subparsers = parser.add_subparsers()
+
+parser_build = subparsers.add_parser(TYPE_BUILD, help='Build to executables for developers')
+parser_build.set_defaults(handler=build)
+
+parser_init = subparsers.add_parser(TYPE_INIT, help='Initialize the application directory creation, etc')
+parser_init.set_defaults(handler=init)
+
+parser_install = subparsers.add_parser(TYPE_INSTALL, help='Install the app by specifying the version')
+parser_install.add_argument('-l', '--list', action='store_true', help='List the installable versions')
+parser_install.add_argument('-v', '--ver', help='Specify the version to install')
+parser_install.add_argument('-p', '--pass', help='Specify the password for installation')
+parser_install.set_defaults(handler=install)
+
+parser_versions = subparsers.add_parser(TYPE_VERSIONS, help='List the installed versions')
+parser_versions.set_defaults(handler=versions)
+
+parser_start = subparsers.add_parser(TYPE_START, help='Start the app by specifying the installed version')
+parser_start.add_argument('-v', '--ver', help='Specify the version of the app to start (if not specified, the latest version)')
+parser_start.set_defaults(handler=start)
+
+parser_sycn = subparsers.add_parser(TYPE_SYNC, help='Sync songs, settings, etc. to the installed version')
+parser_sycn.set_defaults(handler=sync)
+
+args = parser.parse_args()
+
+if hasattr(args, 'handler'): args.handler(args)
+else: parser.print_help()
