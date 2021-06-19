@@ -26,6 +26,7 @@ APP_NAME = 'SUSPlayer.exe'
 APP_PATH = r'C:\Users\Flat\Desktop\SUSPlayer'
 APP_MASTER_PATH = rf'{APP_PATH}\master'
 APP_VERSIONS_PATH = rf'{APP_PATH}\versions'
+APP_VERSION_PATH = rf'{APP_PATH}\version'
 _APP_TMP_PATH = rf'{APP_PATH}\tmp'
 
 HELPER_APP_PATH = r'C:\Program Files (x86)\Steam\steamapps\common\Borderless Gaming\BorderlessGaming.exe'
@@ -35,8 +36,8 @@ TYPE_BUILD = 'build'
 TYPE_INIT = 'init'
 TYPE_INSTALL = 'install'
 TYPE_VERSIONS = 'versions'
+TYPE_USE = 'use'
 TYPE_START = 'start'
-TYPE_SYNC = 'sync'
 
 LOOP_LIMIT = 10
 
@@ -130,6 +131,9 @@ def init(args):
 
     if not os.path.exists(APP_VERSIONS_PATH):
         os.mkdir(APP_VERSIONS_PATH)
+
+    if not os.path.exists(APP_VERSION_PATH):
+        os.mkdir(APP_VERSION_PATH)
 
 def _install_list(driver):
     vers = []
@@ -230,7 +234,40 @@ def _versions():
     return [version(ver, 1) for ver in sorted(vers)]
 
 def versions(args):
-    for ver in _versions(): print(ver)
+    use_ver = glob.glob(rf'{APP_VERSION_PATH}\ver.*')
+    if use_ver: use_ver = version(use_ver[0], 1)
+
+    for ver in _versions():
+        if use_ver == ver: print(f'* {ver}')
+        else: print(f'  {ver}')
+
+def use_sync(ver):
+    for file in os.listdir(APP_MASTER_PATH):
+        target_path = f'{ver}\\{file}'
+
+        if os.path.islink(target_path): os.unlink(target_path)
+        elif os.path.isdir(target_path): shutil.rmtree(target_path)
+        elif os.path.isfile(target_path): os.remove(target_path)
+
+        os.symlink(f'{APP_MASTER_PATH}\\{file}', target_path)
+
+def use(args):
+    ver = args_parse(args)
+
+    vers = glob.glob(rf'{APP_VERSIONS_PATH}\ver.{ver}')
+    if not vers:
+        print('The specified version was not found.')
+        print('See all available versions with `susvm versions`.')
+        return
+
+    use_ver = glob.glob(rf'{APP_VERSION_PATH}\ver.*')
+    if use_ver: shutil.rmtree(use_ver[0])
+
+    ver = vers[0]
+    use_ver = f'{APP_VERSION_PATH}\{version(ver)}'
+    shutil.copytree(ver, use_ver)
+
+    use_sync(use_ver)
 
 def _start_app_shortcat():
     TARGET_KEYS = ['I', 'K']
@@ -276,18 +313,13 @@ def _start_app_intercept(app):
         if app.poll() == 0: break
 
 def start(args):
-    ver = args_parse(args)
-
-    ver = ver or '*'
-    vers = glob.glob(rf'{APP_VERSIONS_PATH}\ver.{ver}')
-
+    vers = glob.glob(rf'{APP_VERSION_PATH}\ver.*')
     if not vers:
-        print('The specified version was not found.')
-        print('See all available versions with `susvm versions`.')
+        print('The version you want to use is not selected.')
+        print('Use `susvm use` to specify the version you want to use.')
         return
 
-    # ToDo: Perform exact version comparison
-    ver = max(vers)
+    ver = vers[0]
 
     app = unstable_app_open(cmd = APP_NAME, cwd = ver, wait = 2)
     type_keys('win+shift+right')
@@ -299,21 +331,6 @@ def start(args):
         _start_app_intercept(app)
     except KeyboardInterrupt:
         app._kill()
-
-def sync(args):
-    vers = glob.glob(rf'{APP_VERSIONS_PATH}\ver.*')
-
-    for ver in vers:
-        for file in os.listdir(APP_MASTER_PATH):
-            target_path = f'{ver}\\{file}'
-
-            if os.path.islink(target_path): os.unlink(target_path)
-            elif os.path.isdir(target_path): shutil.rmtree(target_path)
-            elif os.path.isfile(target_path): os.remove(target_path)
-
-            os.symlink(f'{APP_MASTER_PATH}\\{file}', target_path)
-
-    print('Synchronization has been completed successfully.')
 
 
 
@@ -336,12 +353,12 @@ parser_install.set_defaults(handler=install)
 parser_versions = subparsers.add_parser(TYPE_VERSIONS, help='List the installed versions')
 parser_versions.set_defaults(handler=versions)
 
-parser_start = subparsers.add_parser(TYPE_START, help='Start the app by specifying the installed version')
-parser_start.add_argument('-v', '--ver', help='Specify the version of the app to start (if not specified, the latest version)')
-parser_start.set_defaults(handler=start)
+parser_use = subparsers.add_parser(TYPE_USE, help='Specify the version to be used from the installed version')
+parser_use.add_argument('ver', help='Specify the version to use')
+parser_use.set_defaults(handler=use)
 
-parser_sycn = subparsers.add_parser(TYPE_SYNC, help='Sync songs, settings, etc. to the installed version')
-parser_sycn.set_defaults(handler=sync)
+parser_start = subparsers.add_parser(TYPE_START, help='Start the app based on the version used')
+parser_start.set_defaults(handler=start)
 
 args = parser.parse_args()
 
