@@ -23,6 +23,7 @@ PROJECT_NAME = 'susvm.py'
 PROJECT_PATH = r'C:\Users\Flat\Desktop\susvm'
 
 APP_NAME = 'SUSPlayer.exe'
+APP_CONFIG_NAME = 'Config.ini'
 APP_PATH = r'C:\Users\Flat\Desktop\SUSPlayer'
 APP_MASTER_PATH = rf'{APP_PATH}\master'
 APP_VERSIONS_PATH = rf'{APP_PATH}\versions'
@@ -114,6 +115,25 @@ def args_parse(args):
     args = vars(args)
     del args['handler']
     return itemgetter(*args.keys())(args)
+
+def config_load(path):
+    dict = {}
+
+    with open(path, 'r', encoding='utf-8') as f:
+        for line in f:
+            result = re.search(r'^(\w+)=([\w.]*)$', line)
+            if not result: continue
+            dict.update([result.groups()])
+
+    return dict
+
+def config_sync(master_path, native_path):
+    master = config_load(master_path)
+
+    with open(native_path, 'r', encoding='utf-8') as fr:
+        lines = fr.read()
+        for k, v in master.items(): lines = re.sub(rf'(?<={k}=).*', v, lines)
+        with open(native_path, 'w', encoding='utf-8') as fw: fw.write(lines)
 
 
 
@@ -245,6 +265,10 @@ def versions(args):
 def use_sync(ver):
     for file in os.listdir(APP_MASTER_PATH):
         target_path = f'{ver}\\{file}'
+
+        if file == APP_CONFIG_NAME:
+            config_sync(f'{APP_MASTER_PATH}\\{file}', target_path)
+            continue
 
         if os.path.islink(target_path): os.unlink(target_path)
         elif os.path.isdir(target_path): shutil.rmtree(target_path)
