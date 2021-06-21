@@ -359,7 +359,7 @@ def _start_app_intercept(app):
         if app.poll() == 0: break
 
 def start(args):
-    move, is_full = args_parse(args)
+    right, left, is_full = args_parse(args)
 
     vers = glob.glob(rf'{APP_VERSION_PATH}\ver.*')
     if not vers:
@@ -370,7 +370,7 @@ def start(args):
     ver = vers[0]
 
     app = unstable_app_open(cmd = APP_NAME, cwd = ver, wait = 2)
-    if move: type_keys(f'win+shift+{move}')
+    if right or left: type_keys(f'win+shift+{right or left}')
 
     if is_full:
         path = _env(ENV_SUSVM_HELPER, False)
@@ -440,7 +440,8 @@ parser_use.add_argument('ver', help='Specify the version to use')
 parser_use.set_defaults(handler=use)
 
 parser_start = subparsers.add_parser(TYPE_START, help='Start the app based on the version used')
-parser_start.add_argument('-m', '--move', help='Moves the application window between monitors')
+parser_start.add_argument('-r', '--right', action='store_const', const='right', help='Move the application to the right between monitors')
+parser_start.add_argument('-l', '--left', action='store_const', const='left', help='Move the application to the left between monitors')
 parser_start.add_argument('-f', '--full', action='store_true', help='Make the application window virtual full screen')
 parser_start.set_defaults(handler=start)
 
