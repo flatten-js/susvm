@@ -5,12 +5,14 @@ import time
 import glob
 import shutil
 import zipfile
-import argparse
 import threading
 import subprocess
 import pyautogui as gui
 from operator import itemgetter
 from pyhooked import Hook, KeyboardEvent
+
+import argparse
+from argparse import RawTextHelpFormatter
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -19,18 +21,34 @@ from selenium.common.exceptions import NoSuchElementException
 
 
 # Variables
+def _env(key, exit = True):
+    try:
+        return os.environ[key]
+    except KeyError as e:
+        print('Environment variable not found:', e)
+
+        name = str(e).replace('$', '')
+        print('From Powershell with administrator privileges, set up the following \n')
+        print(f"    [System.Environment]::SetEnvironmentVariable({name}, 'Path you want to set', 'User')")
+
+        if not exit: return None
+        return sys.exit()
+
+ENV_SUSVM = 'SUSVM'
+ENV_SUSVM_APP = f'{ENV_SUSVM}_APP'
+ENV_SUSVM_HELPER = f'{ENV_SUSVM}_HELPER'
+
 PROJECT_NAME = 'susvm.py'
-PROJECT_PATH = r'C:\Users\Flat\Desktop\susvm'
+PROJECT_PATH = _env(ENV_SUSVM)
 
 APP_NAME = 'SUSPlayer.exe'
 APP_CONFIG_NAME = 'Config.ini'
-APP_PATH = r'C:\Users\Flat\Desktop\SUSPlayer'
+APP_PATH = _env(ENV_SUSVM_APP)
 APP_MASTER_PATH = rf'{APP_PATH}\master'
-APP_VERSIONS_PATH = rf'{APP_PATH}\versions'
-APP_VERSION_PATH = rf'{APP_PATH}\version'
-_APP_TMP_PATH = rf'{APP_PATH}\tmp'
+APP_VERSIONS_PATH = rf'{APP_PATH}\.versions'
+APP_VERSION_PATH = rf'{APP_PATH}\.version'
+_APP_TMP_PATH = rf'{APP_PATH}\.tmp'
 
-HELPER_APP_PATH = r'C:\Program Files (x86)\Steam\steamapps\common\Borderless Gaming\BorderlessGaming.exe'
 CHROME_DRIVER = r'driver\chromedriver.exe'
 
 TYPE_BUILD = 'build'
@@ -355,8 +373,12 @@ def start(args):
     if move: type_keys(f'win+shift+{move}')
 
     if is_full:
-        helper_app = unstable_app_open(HELPER_APP_PATH, wait = 2)
-        helper_app.kill()
+        path = _env(ENV_SUSVM_HELPER, False)
+        if path:
+            helper_app = unstable_app_open(path, wait = 2)
+            helper_app.kill()
+        else:
+            print('')
 
     print(f'{version(ver)} is running now')
 
@@ -368,7 +390,34 @@ def start(args):
 
 
 # Arguments
-parser = argparse.ArgumentParser()
+argparse_epilog = """
+Environment Variables
+
+Setup
+
+    From Powershell with administrator privileges, set up the following
+    [System.Environment]::SetEnvironmentVariable('ENV_NAME', 'Path you want to set', 'User')
+
+    You will need to restart the shell after configuration.
+    If it still does not update, reboot the OS.
+
+Required
+
+    SUSVM: Path to the project folder (recommended: %USERPROFILE%\.susvm)
+    SUSVM_APP: Path of the application folder to manage (recommended: %USERPROFILE%\Desktop\SUSPlayer)
+    PATH: Path of the distribution folder in the project folder (recommended: %USERPROFILE%\.susvm\dist)
+
+Optional
+
+    SUSVM_HELPER:
+        Path to the executable file to make it virtual full screen.
+        See Also: [
+            https://github.com/Codeusa/Borderless-Gaming,
+            https://store.steampowered.com/app/388080/Borderless_Gaming
+        ]
+"""
+
+parser = argparse.ArgumentParser(epilog = argparse_epilog, formatter_class = RawTextHelpFormatter)
 subparsers = parser.add_subparsers()
 
 parser_build = subparsers.add_parser(TYPE_BUILD, help='Build to executables for developers')
