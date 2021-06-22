@@ -50,6 +50,7 @@ APP_VERSION_PATH = rf'{APP_PATH}\.version'
 _APP_TMP_PATH = rf'{APP_PATH}\.tmp'
 
 CHROME_DRIVER = r'driver\chromedriver.exe'
+REQUIREMENTS = 'requirements.txt'
 
 TYPE_BUILD = 'build'
 TYPE_INIT = 'init'
@@ -153,14 +154,28 @@ def config_sync(master_path, native_path):
         for k, v in master.items(): lines = re.sub(rf'(?<={k}=).*', v, lines)
         with open(native_path, 'w', encoding='utf-8') as fw: fw.write(lines)
 
+def cmd_options(name, *args):
+    return ' '.join(map(lambda v: f'--{name} {v}', args))
+
 
 
 # Core
 def build(args):
-    cmd = f'pyinstaller {PROJECT_PATH}\\{PROJECT_NAME} --onefile --add-binary {PROJECT_PATH}\\{CHROME_DRIVER};./driver'
+    binarys = [f'{PROJECT_PATH}\\{CHROME_DRIVER};./driver']
+    datas = [f'{PROJECT_PATH}\\{REQUIREMENTS};.']
+
+    add_binarys = cmd_options('add-binary', *binarys)
+    add_datas = cmd_options('add-data', *datas)
+
+    cmd = f'pyinstaller {PROJECT_PATH}\\{PROJECT_NAME} --onefile {add_binarys} {add_datas}'
     subprocess.call(cmd)
 
 def init(args):
+    developer = args_parse(args)
+
+    if developer:
+        subprocess.call(f'pip install -r {resource_path(REQUIREMENTS)}')
+
     if not os.path.exists(APP_PATH):
         os.mkdir(APP_PATH)
 
@@ -424,6 +439,7 @@ parser_build = subparsers.add_parser(TYPE_BUILD, help='Build to executables for 
 parser_build.set_defaults(handler=build)
 
 parser_init = subparsers.add_parser(TYPE_INIT, help='Initialize the application directory creation, etc')
+parser_init.add_argument('-d', '--developer', action='store_true', help='Set up as a developer')
 parser_init.set_defaults(handler=init)
 
 parser_install = subparsers.add_parser(TYPE_INSTALL, help='Install the app by specifying the version')
