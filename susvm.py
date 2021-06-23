@@ -80,6 +80,7 @@ def resource_path(path):
 def chrome_driver():
     options = Options()
     options.add_argument('--headless')
+    options.add_argument('--single-process')
     options.add_argument('--blink-settings=imagesEnabled=false')
     options.add_experimental_option('excludeSwitches', ['enable-logging'])
 
@@ -211,6 +212,10 @@ def init(args):
 
     if developer:
         subprocess.call(f'pip install -r {resource_path(REQUIREMENTS)}')
+        print('')
+
+        print('The environment in which it was run')
+        subprocess.call('python -V && pip -V', shell=True)
 
     if not os.path.exists(APP_PATH):
         os.mkdir(APP_PATH)
@@ -295,7 +300,8 @@ def install(args):
         return driver.quit()
 
     # Disable target=_blank and go to the installation page
-    driver.get(link.get_attribute('href'))
+    url = link.get_attribute('href')
+    driver.get(url)
 
     success = _install_try(driver, pwd)
     if not success: return driver.quit()
@@ -441,34 +447,34 @@ def start(args):
 
 
 # Arguments
-argparse_epilog = """
-Environment Variables
+epilog = """
+    Environment Variables
 
-Setup
+    Setup
 
-    From Powershell with administrator privileges, set up the following
-    [System.Environment]::SetEnvironmentVariable('ENV_NAME', 'Path you want to set', 'User')
+        From Powershell with administrator privileges, set up the following
+        [System.Environment]::SetEnvironmentVariable('ENV_NAME', 'Path you want to set', 'User')
 
-    You will need to restart the shell after configuration.
-    If it still does not update, reboot the OS.
+        You will need to restart the shell after configuration.
+        If it still does not update, reboot the OS.
 
-Required
+    Required
 
-    SUSVM: Path to the project folder (recommended: %USERPROFILE%\.susvm)
-    SUSVM_APP: Path of the application folder to manage (recommended: %USERPROFILE%\Desktop\SUSPlayer)
-    PATH: Path of the distribution folder in the project folder (recommended: %USERPROFILE%\.susvm\dist)
+        SUSVM: Path to the project folder (recommended: %USERPROFILE%\.susvm)
+        SUSVM_APP: Path of the application folder to manage (recommended: %USERPROFILE%\Desktop\SUSPlayer)
+        PATH: Path of the distribution folder in the project folder (recommended: %SUSVM%\dist)
 
-Optional
+    Optional
 
-    SUSVM_HELPER:
-        Path to the executable file to make it virtual full screen.
-        See Also: [
-            https://github.com/Codeusa/Borderless-Gaming,
-            https://store.steampowered.com/app/388080/Borderless_Gaming
-        ]
+        SUSVM_HELPER:
+            Path to the executable file to make it virtual full screen.
+            See Also: [
+                https://github.com/Codeusa/Borderless-Gaming,
+                https://store.steampowered.com/app/388080/Borderless_Gaming
+            ]
 """
 
-parser = argparse.ArgumentParser(epilog = argparse_epilog, formatter_class = RawTextHelpFormatter)
+parser = argparse.ArgumentParser(epilog = dedent(epilog), formatter_class = RawTextHelpFormatter)
 subparsers = parser.add_subparsers()
 
 parser_update = subparsers.add_parser(TYPE_UPDATE, help='Documentation for updating the VM itself')
