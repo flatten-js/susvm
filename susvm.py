@@ -5,6 +5,7 @@ import time
 import glob
 import shutil
 import zipfile
+import textwrap
 import threading
 import subprocess
 import pyautogui as gui
@@ -52,6 +53,7 @@ _APP_TMP_PATH = rf'{APP_PATH}\.tmp'
 CHROME_DRIVER = r'driver\chromedriver.exe'
 REQUIREMENTS = 'requirements.txt'
 
+TYPE_UPDATE = 'update'
 TYPE_BUILD = 'build'
 TYPE_INIT = 'init'
 TYPE_INSTALL = 'install'
@@ -157,9 +159,43 @@ def config_sync(master_path, native_path):
 def cmd_options(name, *args):
     return ' '.join(map(lambda v: f'--{name} {v}', args))
 
+def dedent(str):
+    return textwrap.dedent(str)[1:-1]
+
 
 
 # Core
+def update(args):
+    docs = """
+        To update the VM itself, Git needs to be installed.
+        See Also: https://sukkiri.jp/technologies/devtools/git/git_win.html
+
+        * Run it from the root directory of susvm.
+
+        This is not necessary if this is the second or later time or if you have cloned directly from Git.
+
+            Create a new repository
+                C:\> git init
+
+            Create an association with a remote repository
+                C:\> git remote add origin https://github.com/flatten-js/susvm
+
+            Get the latest data from the remote branch
+                C:\> git pull
+
+            Forcibly overwrite the local master
+                C:\> git reset --hard origin/master
+
+            Explicitly set up an upstream branch
+                C:\> git branch --set-upstream-to=origin/master master
+
+
+        Get the latest data from the remote branch
+            C:\> git pull
+    """
+
+    print(dedent(docs))
+
 def build(args):
     binarys = [f'{PROJECT_PATH}\\{CHROME_DRIVER};./driver']
     datas = [f'{PROJECT_PATH}\\{REQUIREMENTS};.']
@@ -434,6 +470,9 @@ Optional
 
 parser = argparse.ArgumentParser(epilog = argparse_epilog, formatter_class = RawTextHelpFormatter)
 subparsers = parser.add_subparsers()
+
+parser_update = subparsers.add_parser(TYPE_UPDATE, help='Documentation for updating the VM itself')
+parser_update.set_defaults(handler=update)
 
 parser_build = subparsers.add_parser(TYPE_BUILD, help='Build to executables for developers')
 parser_build.set_defaults(handler=build)
