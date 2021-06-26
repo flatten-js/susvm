@@ -1,0 +1,4 @@
+PyAutoGUI==0.9.52
+pyhooked==0.8.1
+pyinstaller==4.3
+selenium==3.141.0
